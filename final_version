@@ -1,0 +1,184 @@
+import re
+import requests
+from bs4 import BeautifulSoup
+import codecs
+import random
+import os
+from multiprocessing import Pool
+
+ip_list = ['49.71.81.226:3128', '60.210.104.254:808', '222.188.189.128:6666', '180.118.242.157:61234',
+           '27.40.156.236:61234', '222.85.39.2:33526', '49.79.196.6:61234', '113.67.166.170:8118',
+           '223.145.230.3:6666', '27.204.173.21:61234', '182.202.223.125:61234', '222.111.176.113:3128',
+           '117.92.196.189:61234', '119.186.18.194:61234', '117.121.33.41:80', '222.137.69.195:1080',
+           '115.208.120.92:808', '221.230.197.133:61234', '115.221.115.102:29488', '125.118.150.153:6666',
+           '125.78.104.87:24661', '221.229.18.47:3128', '49.79.195.69:61234', '118.114.77.47:8080',
+           '113.121.243.218:61234', '49.71.81.159:3128', '218.73.128.197:23317', '125.118.79.151:6666',
+           '27.204.172.175:61234', '144.255.123.65:61234', '180.119.65.166:3128', '27.154.182.104:32754',
+           '144.0.242.218:61234', '222.186.45.121:52163', '124.67.11.93:61234', '123.134.183.159:61234',
+           '114.226.65.120:6666', '180.106.251.57:8118', '36.187.96.44:61202', '115.221.245.154:8118',
+           '221.229.18.181:3128', '59.40.24.41:61202', '27.28.233.153:61234', '115.214.21.142:61202',
+           '61.133.235.129:61202', '58.216.202.149:8118', '182.202.222.6:61234', '114.234.24.225:61202',
+           '113.121.242.225:61234', '110.244.156.22:61202', '119.186.232.171:61234', '36.187.96.112:61202',
+           '125.122.117.19:6666', '61.54.185.105:61234', '223.145.228.224:6666', '175.175.112.211:61202',
+           '222.186.45.65:56721', '27.16.248.220:61202', '125.112.173.85:35298', '27.18.33.196:61202',
+           '220.187.21.125:61202', '175.171.190.248:53281', '58.208.1.44:61202', '171.11.229.148:43056',
+           '218.93.166.74:6666', '59.32.37.230:61234', '59.32.37.13:61234', '112.193.254.43:8888',
+           '183.136.98.171:61234', '125.118.79.7:6666', '171.14.14.165:61234', '121.225.24.200:3128',
+           '39.187.217.90:61202', '119.179.243.45:61234', '60.176.232.205:6666', '27.10.112.229:61202',
+           '125.120.203.64:6666', '42.57.126.199:61202', '123.234.241.199:61202', '113.63.109.172:61202',
+           '59.32.37.162:61234', '183.155.254.175:61202', '180.119.65.101:3128', '125.32.82.12:61202',
+           '42.52.20.56:61202', '14.112.76.246:61234', '220.184.212.178:6666', '125.121.112.70:6666',
+           '14.118.253.79:61234', '117.22.210.236:61202', '36.6.12.49:61234', '27.224.252.16:61202',
+           '115.201.31.22:61202', '59.38.241.50:61234', '122.230.146.66:61234', '36.110.175.132:8080',
+           '114.228.91.218:6666', '124.118.17.181:61202', '180.119.65.224:3128', '116.17.236.44:61234',
+           '113.86.223.11:61234']
+
+def job_name_getter(beautiful_soup, job_name=None):
+    if job_name is None:
+        job_name = []
+    for element in beautiful_soup.find_all("p", class_="t1"):
+        for job_ in element.find_all('a'):
+            job_name.append(job_["title"])
+    return job_name
+
+def company_name_getter(beautiful_soup, company_name=None):
+    if company_name is None:
+        company_name = []
+    for element in beautiful_soup.find_all("span", class_="t2"):
+        for job_ in element.find_all('a'):
+            company_name.append(job_["title"])
+    return company_name
+
+def workplace_name_getter(beautiful_soup, workplace=None):
+    if workplace is None:
+        workplace = []
+    for element in beautiful_soup.find_all("span", class_="t3"):
+        workplace.append(element.get_text())
+    if "工作地点" in workplace:
+        workplace.remove("工作地点")
+    return workplace
+
+def salary_getter(beautiful_soup, salary=None):
+    if salary is None:
+        salary = []
+    for element in beautiful_soup.find_all("span", class_="t4"):
+        salary.append(element.get_text())
+    if "薪资" in salary:
+        salary.remove("薪资")
+    return salary
+
+def publish_date_getter(beautiful_soup, publish_date=None):
+    if publish_date is None:
+        publish_date = []
+    for element in beautiful_soup.find_all("span", class_="t5"):
+        publish_date.append(element.get_text())
+    if "发布时间" in publish_date:
+        publish_date.remove("发布时间")
+    return publish_date
+
+def get_last_file():
+    file_list = os.listdir("data")
+    if len(file_list) == 0:
+        return None
+    return codecs.open(filename="data/" + file_list[-1], mode='a+')
+
+def get_random_ip(ip_list):
+    proxy_list = []
+    for ip in ip_list:
+        proxy_list.append('https://' + ip)
+    proxy_ip = random.choice(proxy_list)
+    proxies = {'https': proxy_ip}
+    return proxies
+
+def data_crawl(city_code, filename):
+    str1 = "http://search.51job.com/list/"
+    str2 = ",000000,0000,"
+    workyear_str = ",%2520,2,1.html?lang=c&stype=&postchannel=0000&workyear="
+    degreefrom_str = "&cotype=99&degreefrom="
+    jobterm_str = "&jobterm=01"
+    last_str = "&companysize=99&lonlat=0%2C0&radius=-1&ord_field=0&confirmdate=9&fromType" \
+              "=21&dibiaoid=0&address=&line=&specialarea=00&from=&welfare="
+    salary_range = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
+    workyear = ['01', '02', '03', '04', '05']
+    degreefrom = ['01', '02', '03', '04', '05', '06']
+    industry = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18',
+                '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36',
+                '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47', '48', '49', '50', '51', '52', '53', '54',
+                '55', '56', '57', '58']
+
+    result = dict()
+    for i in range(len(city_code)):
+        for j in range(len(industry)):
+            for k in range(len(salary_range)):
+                for l in range(len(workyear)):
+                    for m in range(len(degreefrom)):
+                        url_link = str1 + city_code[i] + str2 + industry[j] + ",9," + salary_range[k] + workyear_str + \
+                                   workyear[l] + degreefrom_str+degreefrom[m] + jobterm_str + last_str
+                        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 "
+                                                 "(KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"}
+
+                        # 随机IP请求
+                        success = False
+                        while not success:
+                            try:
+                                proxies = get_random_ip(ip_list)
+                                req = requests.get(url=url_link, headers=headers, proxies=proxies)
+                                req.encoding = 'gbk'
+                                html = req.text
+                                success = True
+                            except ConnectionError as e:
+                                print("连接请求失败......", e)
+
+                        bf = BeautifulSoup(html, 'lxml')
+
+                        page_cnt_pattern = re.compile(r"共(.*?)页")
+                        page_cnt = re.findall(page_cnt_pattern, bf.get_text())
+                        result["page_cnt"] = page_cnt
+
+                        content_cnt_pattern = re.compile(r"共(.*?)条职位")
+                        content_cnt = re.findall(content_cnt_pattern, bf.get_text())
+                        result["content_cnt"] = content_cnt
+
+                        job_name = job_name_getter(beautiful_soup=bf)
+                        result["job_name"] = job_name
+                        company_name = company_name_getter(beautiful_soup=bf)
+                        result["company_name"] = company_name
+                        workplace = workplace_name_getter(beautiful_soup=bf)
+                        result["workplace"] = workplace
+                        salary = salary_getter(beautiful_soup=bf)
+                        result["salary"] = salary
+                        date = publish_date_getter(beautiful_soup=bf)
+                        result["date"] = date
+
+                        file_handler = codecs.open(filename=filename, mode='a+')
+                        data = {"city": city_code[i], "industry": industry[j], "income": salary_range[k],
+                                "workyear": workyear[l], "degreefrom": degreefrom[m], "result": result,
+                                "url_link": url_link}
+
+                        file_handler.write(str(data))
+                        file_handler.write("\n")
+
+def multi_process():
+    city_code = [['010000', '020000', '030000'], ['040000', '050000', '060000'], ['070000', '080000', '090000'],
+                 ['100000', '110000', '120000'], ['130000', '140000', '150000'], ['160000', '170000', '180000'],
+                 ['190000', '200000', '210000'], ['220000', '230000', '240000'], ['250000', '260000', '270000'],
+                 ['280000', '290000', '300000'], ['310000', '320000', '330000'], ['340000', '350000']]
+    files = ["data/1.json", "data/2.json", "data/3.json", "data/4.json", "data/5.json", "data/6.json", "data/7.json",
+             "data/8.json", "data/9.json", "data/10.json", "data/11.json", "data/12.json"]
+    pool = Pool(12)
+    for i in range(12):
+        pool.apply_async(data_crawl, args=(city_code[i], files[i], ))
+    pool.close()
+    pool.join()
+
+if __name__ == "__main__":
+    multi_process()
+
+
+
+
+
+
+
+
+
